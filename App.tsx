@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Shuffle, Quote, Sparkles, BookOpen, 
   Sprout, Tags, MessageSquareQuote, Download, Highlighter, 
@@ -408,6 +408,9 @@ export default function App() {
   const [highlightMode, setHighlightMode] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const cardBackRef = useRef<HTMLDivElement>(null);
+  const cardContainerRef = useRef<HTMLDivElement>(null);
+  const [cardHeight, setCardHeight] = useState(700);
   
   const [savedHighlights, setSavedHighlights] = useState<Record<string, string[]>>(() => {
     try {
@@ -454,6 +457,28 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, isFlipped, highlightMode, showAddModal, cards.length]);
+
+  // 动态计算卡片高度
+  useEffect(() => {
+    const updateCardHeight = () => {
+      if (cardBackRef.current) {
+        const height = cardBackRef.current.scrollHeight;
+        setCardHeight(Math.max(height, 700)); // 最小高度700px
+      }
+    };
+
+    updateCardHeight();
+    // 延迟一下确保DOM已渲染
+    const timer = setTimeout(updateCardHeight, 100);
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', updateCardHeight);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateCardHeight);
+    };
+  }, [currentIndex, cards, isFlipped, cardHighlights]);
 
   const handleFlip = () => setIsFlipped(!isFlipped);
   
@@ -594,9 +619,14 @@ export default function App() {
       </div>
 
       {/* Card Container */}
-      <div className="relative w-full max-w-2xl perspective-1000 group z-0 mb-24">
-        <div className={`relative w-full transition-all duration-700 preserve-3d cursor-pointer ${isFlipped ? 'rotate-y-180' : ''}`}
-          style={{ height: 'auto', minHeight: '700px' }}
+      <div 
+        ref={cardContainerRef}
+        className="relative w-full max-w-2xl perspective-1000 group z-0 mb-32"
+        style={{ minHeight: `${cardHeight}px` }}
+      >
+        <div 
+          className={`relative w-full transition-all duration-700 preserve-3d cursor-pointer ${isFlipped ? 'rotate-y-180' : ''}`}
+          style={{ height: `${cardHeight}px` }}
           onClick={(e) => {
             const selection = window.getSelection();
             const selectionText = selection?.toString() || '';
@@ -608,7 +638,10 @@ export default function App() {
           }}
         >
           {/* FRONT */}
-          <div className="absolute w-full min-h-[700px] h-full backface-hidden rounded-sm shadow-2xl bg-[#FDFBF7] flex flex-col items-center justify-center p-12 border border-stone-200">
+          <div 
+            className="absolute w-full backface-hidden rounded-sm shadow-2xl bg-[#FDFBF7] flex flex-col items-center justify-center p-12 border border-stone-200"
+            style={{ height: `${cardHeight}px` }}
+          >
              <div className="absolute top-4 left-4 w-3 h-3 border-t border-l border-stone-300"></div>
             <div className="absolute top-4 right-4 w-3 h-3 border-t border-r border-stone-300"></div>
             <div className="absolute bottom-4 left-4 w-3 h-3 border-b border-l border-stone-300"></div>
@@ -627,9 +660,18 @@ export default function App() {
             <div className="mt-auto text-stone-400 text-xs tracking-widest uppercase opacity-60">Tap to Reveal</div>
           </div>
 
-          {/* BACK */}
-          <div className="absolute w-full h-auto min-h-[700px] backface-hidden rotate-y-180 rounded-sm shadow-2xl bg-[#FDFBF7] flex flex-col border border-stone-200 text-left" onClick={(e) => e.stopPropagation()} onMouseUp={handleTextMouseUp}>
-            <div className="p-6 md:p-8 pb-6">
+          {/* BACK - 使用ref来测量实际高度 */}
+          <div 
+            ref={cardBackRef}
+            className="absolute w-full backface-hidden rotate-y-180 rounded-sm shadow-2xl bg-[#FDFBF7] flex flex-col border border-stone-200 text-left" 
+            onClick={(e) => e.stopPropagation()} 
+            onMouseUp={handleTextMouseUp}
+            style={{ 
+              minHeight: '700px',
+              height: 'auto'
+            }}
+          >
+            <div className="p-6 md:p-8">
                 <div className="border-b border-stone-200 pb-3 mb-5 flex justify-between items-baseline">
                     <div className="flex-1">
                       <span className="font-bold text-xl text-stone-900 truncate pr-4 block">{currentCard.term.split(/[(（]/)[0]}</span>
