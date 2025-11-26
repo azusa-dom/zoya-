@@ -3,11 +3,18 @@ import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { ConnectionStatus } from '../types';
 import { createPcmBlob, base64ToBytes, decodeAudioData, PCM_SAMPLE_RATE, PLAYBACK_SAMPLE_RATE } from '../utils/audioUtils';
 
+export type ChatMessage = {
+  role: 'user' | 'ai';
+  text: string;
+  timestamp: number;
+};
+
 export const useLiveSession = () => {
   const [status, setStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
-  const [volume, setVolume] = useState(0); // For visualization
+  const [volume, setVolume] = useState(0);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   
-  // Refs for audio handling
+  // ... (refs) ...
   const inputContextRef = useRef<AudioContext | null>(null);
   const outputContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -58,6 +65,8 @@ export const useLiveSession = () => {
     setStatus(prev => prev === ConnectionStatus.ERROR ? prev : ConnectionStatus.DISCONNECTED);
     setVolume(0);
     nextStartTimeRef.current = 0;
+    // Optionally clear history on disconnect or keep it? 
+    // setChatHistory([]); // Let's keep it for now so user can see what was said
   }, []);
 
   const connect = useCallback(async (contextText: string) => {
@@ -115,7 +124,7 @@ export const useLiveSession = () => {
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.0-flash-exp',
         config: {
-          responseModalities: [Modality.AUDIO],
+          responseModalities: [Modality.AUDIO, Modality.TEXT], // Enable Text for transcript
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } },
           },
@@ -157,6 +166,22 @@ export const useLiveSession = () => {
           onmessage: async (msg: LiveServerMessage) => {
             const outputCtx = outputContextRef.current;
             if (!outputCtx) return;
+
+            // Handle Text Output (AI Turn)
+            const textContent = msg.serverContent?.modelTurn?.parts?.[0]?.text;
+            if (textContent) {
+               setChatHistory(prev => {
+                   const lastMsg = prev[prev.length - 1];
+                   // If last message was AI and very recent, maybe append? 
+                   // But usually turns are distinct. Let's add new.
+                   return [...prev, { role: 'ai', text: textContent, timestamp: Date.now() }];
+               });
+            }
+            
+            // Handle User Input Transcript (if available via serverContent.turnComplete or similar)
+            // Note: Live API usually sends 'userContent' echo if configured, or we infer it.
+            // Currently Live API might not echo user text in real-time audio mode easily without extra config.
+            // For now we rely on AI responses.
 
             // Handle Audio Output
             const base64Audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
@@ -225,6 +250,6 @@ export const useLiveSession = () => {
     return () => { disconnect(); };
   }, [disconnect]);
 
-  return { connect, disconnect, status, volume };
+  return { connect, disconnect, status, volume, chatHistory };
 };
 
