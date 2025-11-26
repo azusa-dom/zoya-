@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { ConnectionStatus } from '../types';
-import { createPcmBlob, base64ToBytes, decodeAudioData, PCM_SAMPLE_RATE, PLAYBACK_SAMPLE_RATE } from '../utils/audioUtils';
+import { createPcmBlob, base64ToBytes, decodeAudioData, PCM_SAMPLE_RATE, PLAYBACK_SAMPLE_RATE, downsampleTo16k } from '../utils/audioUtils';
 
 export type ChatMessage = {
   role: 'user' | 'ai';
@@ -100,7 +100,8 @@ export const useLiveSession = () => {
       
       // Setup Audio Contexts
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      inputContextRef.current = new AudioContextClass({ sampleRate: PCM_SAMPLE_RATE });
+      // Do NOT force sample rate for input, let it be system default to avoid errors/resampling issues at source
+      inputContextRef.current = new AudioContextClass(); 
       outputContextRef.current = new AudioContextClass({ sampleRate: PLAYBACK_SAMPLE_RATE });
       
       // Ensure contexts are running (browser autoplay policy)
@@ -154,7 +155,10 @@ export const useLiveSession = () => {
               const rms = Math.sqrt(sum/inputData.length);
               setVolume(v => (v * 0.8) + (rms * 0.2)); // Smooth volume
 
-              const pcmBlob = createPcmBlob(inputData);
+              // Downsample to 16kHz before sending
+              const currentSampleRate = inputContextRef.current?.sampleRate || 48000;
+              const pcm16k = downsampleTo16k(inputData, currentSampleRate);
+              const pcmBlob = createPcmBlob(pcm16k);
               
               sessionPromiseRef.current.then(session => {
                   // Double check session state logic if possible, or just catch errors silently

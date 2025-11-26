@@ -45,11 +45,41 @@ export function createPcmBlob(data: Float32Array): Blob {
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
-    int16[i] = Math.max(-1, Math.min(1, data[i])) * 32768;
+    // Clamp values between -1 and 1
+    const s = Math.max(-1, Math.min(1, data[i]));
+    // Convert to 16-bit PCM
+    int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
   }
   return {
     data: bytesToBase64(new Uint8Array(int16.buffer)),
     mimeType: `audio/pcm;rate=${PCM_SAMPLE_RATE}`,
   };
+}
+
+/**
+ * Downsamples audio data from sourceSampleRate to targetSampleRate
+ */
+export function downsampleTo16k(
+    sourceData: Float32Array,
+    sourceSampleRate: number
+): Float32Array {
+    if (sourceSampleRate === 16000) {
+        return sourceData;
+    }
+
+    const ratio = sourceSampleRate / 16000;
+    const newLength = Math.round(sourceData.length / ratio);
+    const result = new Float32Array(newLength);
+    
+    for (let i = 0; i < newLength; i++) {
+        const offset = Math.floor(i * ratio);
+        // Simple nearest neighbor or basic averaging
+        // For speech, just picking the sample is often 'good enough' for realtime
+        // but let's do a tiny bit of safety boundary check
+        if (offset < sourceData.length) {
+            result[i] = sourceData[offset];
+        }
+    }
+    return result;
 }
 
