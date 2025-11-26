@@ -460,6 +460,8 @@ export default function App() {
 
   // 动态计算卡片高度
   useEffect(() => {
+    if (cards.length === 0) return;
+    
     const updateCardHeight = () => {
       if (cardBackRef.current) {
         const height = cardBackRef.current.scrollHeight;
@@ -470,15 +472,17 @@ export default function App() {
     updateCardHeight();
     // 延迟一下确保DOM已渲染
     const timer = setTimeout(updateCardHeight, 100);
+    const timer2 = setTimeout(updateCardHeight, 300);
     
     // 监听窗口大小变化
     window.addEventListener('resize', updateCardHeight);
     
     return () => {
       clearTimeout(timer);
+      clearTimeout(timer2);
       window.removeEventListener('resize', updateCardHeight);
     };
-  }, [currentIndex, cards, isFlipped, cardHighlights]);
+  }, [currentIndex, cards, isFlipped, savedHighlights]);
 
   const handleFlip = () => setIsFlipped(!isFlipped);
   
