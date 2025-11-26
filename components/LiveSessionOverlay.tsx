@@ -25,22 +25,22 @@ export const LiveSessionOverlay: React.FC<LiveSessionOverlayProps> = ({ selected
   const isConnecting = status === ConnectionStatus.CONNECTING;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="bg-slate-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300 font-serif">
+      <div className="bg-[#FDFBF7] w-full max-w-lg rounded-xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
-          <div className="flex items-center gap-2">
-             <div className="p-2 bg-green-500/20 rounded-lg">
-               <MessageSquare className="w-5 h-5 text-green-400" />
+        <div className="flex items-center justify-between p-6 border-b border-stone-100 bg-white/50 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-[#ccff00] rounded-sm border border-stone-200 shadow-sm">
+               <MessageSquare className="w-5 h-5 text-stone-900" />
              </div>
              <div>
-               <h2 className="text-white font-semibold">Live Practice</h2>
-               <p className="text-xs text-slate-400">Gemini 2.0 Flash</p>
+               <h2 className="text-stone-900 font-bold uppercase tracking-widest text-sm">Live Practice</h2>
+               <p className="text-[10px] text-stone-400 font-medium uppercase tracking-wide">Gemini 2.0 Flash</p>
              </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors"
+            className="p-2 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-900 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -50,61 +50,59 @@ export const LiveSessionOverlay: React.FC<LiveSessionOverlayProps> = ({ selected
         <div className="p-8 flex flex-col items-center justify-center gap-8 min-h-[300px]">
           
           {/* Status Indicator */}
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-6">
              {isConnecting && (
                <div className="relative">
-                 <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-                 <div className="absolute inset-0 flex items-center justify-center">
-                   <div className="w-8 h-8 bg-blue-500 rounded-full opacity-50 animate-pulse"></div>
-                 </div>
+                 <div className="w-20 h-20 border-4 border-stone-200 border-t-stone-800 rounded-full animate-spin"></div>
                </div>
              )}
              
              {isConnected && (
                <div className="relative">
-                 <div className="w-24 h-24 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
-                    <Mic className="w-8 h-8 text-green-400" />
+                 <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center border border-stone-200 shadow-lg ring-4 ring-[#ccff00]/20">
+                    <Mic className="w-10 h-10 text-stone-900" />
                  </div>
-                 <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2">
+                 <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2">
                    <AudioVisualizer volume={volume} active={true} />
                  </div>
                </div>
              )}
 
              {isError && (
-               <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/30">
+               <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center border border-red-100">
                  <AlertCircle className="w-10 h-10 text-red-400" />
                </div>
              )}
           </div>
 
-          <div className="text-center space-y-2 max-w-sm">
-             {isConnecting && <p className="text-lg text-blue-200">Connecting to tutor...</p>}
-             {isConnected && <p className="text-lg text-green-200">Listening...</p>}
-             {isError && <p className="text-lg text-red-200">Connection failed</p>}
+          <div className="text-center space-y-4 max-w-sm">
+             {isConnecting && <p className="text-xl text-stone-600 italic">Connecting to tutor...</p>}
+             {isConnected && <p className="text-xl text-stone-900 font-medium">Listening...</p>}
+             {isError && <p className="text-xl text-red-500 font-bold">Connection failed</p>}
              
-             <div className="mt-4 p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
-               <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-2">Context</p>
-               <p className="text-slate-300 italic">"{selectedText}"</p>
+             <div className="mt-6 p-5 bg-white rounded-sm border border-stone-200 shadow-sm text-left relative group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#ccff00]"></div>
+               <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold mb-2 pl-2">Context</p>
+               <p className="text-stone-800 text-lg leading-relaxed pl-2 font-serif italic">"{selectedText}"</p>
              </div>
           </div>
 
         </div>
 
         {/* Footer Controls */}
-        <div className="p-4 border-t border-slate-700 bg-slate-800/50 flex justify-center">
+        <div className="p-6 border-t border-stone-100 bg-stone-50 flex justify-center">
             {isConnected ? (
                 <button 
                   onClick={disconnect}
-                  className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-6 py-3 rounded-full font-medium transition-colors"
+                  className="flex items-center gap-2 bg-white hover:bg-red-50 text-red-500 border border-red-200 px-8 py-3 rounded-full font-bold text-xs uppercase tracking-widest shadow-sm transition-all hover:shadow-md"
                 >
-                  <MicOff className="w-5 h-5" />
+                  <MicOff className="w-4 h-4" />
                   <span>End Session</span>
                 </button>
             ) : (
                 <button 
                   onClick={() => connect(selectedText)}
-                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-full font-medium transition-colors"
+                  className="flex items-center gap-2 bg-stone-900 hover:bg-stone-800 text-white px-8 py-3 rounded-full font-bold text-xs uppercase tracking-widest shadow-md transition-all hover:shadow-lg"
                 >
                   {isError ? "Retry Connection" : "Connect"}
                 </button>

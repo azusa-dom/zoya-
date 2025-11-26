@@ -10,7 +10,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ volume, active
   const normalizedVol = Math.min(1, volume * 5); 
   
   return (
-    <div className="flex items-center justify-center gap-1 h-12 w-24">
+    <div className="flex items-center justify-center gap-1.5 h-12 w-24">
       {[1, 2, 3, 4, 5].map((i) => {
         // Calculate height based on volume and sine wave for idle animation
         const isCenter = i === 3;
@@ -22,7 +22,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ volume, active
         return (
           <div
             key={i}
-            className={`w-2 rounded-full transition-all duration-75 ${active ? 'bg-green-400' : 'bg-slate-600'}`}
+            className={`w-1.5 rounded-full transition-all duration-75 ${active ? 'bg-[#ccff00]' : 'bg-stone-300'}`}
             style={{ 
               height: `${height}px`
             }}

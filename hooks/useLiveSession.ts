@@ -16,6 +16,9 @@ export const useLiveSession = () => {
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const activeSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
 
+  // Keep track of connection attempts to prevent loops
+  const connectionAttemptRef = useRef(0);
+  
   const disconnect = useCallback(async () => {
     // Cleanup audio sources
     activeSourcesRef.current.forEach(source => {
@@ -51,12 +54,21 @@ export const useLiveSession = () => {
       outputContextRef.current = null;
     }
 
-    setStatus(ConnectionStatus.DISCONNECTED);
+    // Don't reset status if it's an error, so UI shows error state instead of reconnecting
+    setStatus(prev => prev === ConnectionStatus.ERROR ? prev : ConnectionStatus.DISCONNECTED);
     setVolume(0);
     nextStartTimeRef.current = 0;
   }, []);
 
   const connect = useCallback(async (contextText: string) => {
+    // Prevent rapid reconnections
+    const now = Date.now();
+    if (connectionAttemptRef.current > 0 && now - connectionAttemptRef.current < 2000) {
+        console.log("Connection throttled");
+        return;
+    }
+    connectionAttemptRef.current = now;
+
     if (status === ConnectionStatus.CONNECTED || status === ConnectionStatus.CONNECTING) return;
     
     setStatus(ConnectionStatus.CONNECTING);
@@ -70,6 +82,10 @@ export const useLiveSession = () => {
         (typeof process !== "undefined" &&
           (process.env?.GEMINI_API_KEY || process.env?.API_KEY)) ||
         "";
+
+      if (!GEMINI_API_KEY) {
+          throw new Error("API Key not found");
+      }
 
       const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       
@@ -92,14 +108,10 @@ export const useLiveSession = () => {
       const systemInstruction = `
         You are a helpful and friendly English language tutor. 
         The user is practicing the following text: "${contextText}".
-        
-        1. Help the user pronounce words from this text correctly.
-        2. Engage in a conversation using vocabulary from the text.
-        3. If the user makes a mistake, gently correct them and ask them to try again.
-        4. Keep your responses concise and conversational.
+        Keep your responses concise and conversational.
       `;
 
-      // Use gemini-2.0-flash-exp for better region availability
+      // Using gemini-2.0-flash-exp
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.0-flash-exp',
         config: {
@@ -183,12 +195,15 @@ export const useLiveSession = () => {
           },
           onclose: () => {
             console.log("Session closed from server");
-            disconnect();
+            // Do NOT call disconnect() here directly if it triggers state change that re-triggers connect
+            // Just set status to disconnected or error
+            setStatus(ConnectionStatus.DISCONNECTED);
+            setVolume(0);
           },
           onerror: (err) => {
             console.error("Session error", err);
-            disconnect();
             setStatus(ConnectionStatus.ERROR);
+            // Don't auto disconnect/reconnect, let user retry
           }
         }
       });
@@ -198,9 +213,12 @@ export const useLiveSession = () => {
     } catch (error) {
       console.error("Connection failed", error);
       setStatus(ConnectionStatus.ERROR);
-      disconnect();
+      // Cleanup resources but keep Error status
+      if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+      }
     }
-  }, [disconnect, status]);
+  }, [status]); // Removed disconnect from dependencies to avoid loop
 
   // Cleanup on unmount
   useEffect(() => {
