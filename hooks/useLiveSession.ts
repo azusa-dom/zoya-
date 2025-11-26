@@ -26,7 +26,13 @@ export const useLiveSession = () => {
   // Keep track of connection attempts to prevent loops
   const connectionAttemptRef = useRef(0);
   
-  const disconnect = useCallback(async () => {
+    const disconnect = useCallback(async () => {
+    // Flag to stop processing
+    if (processorRef.current) {
+        processorRef.current.disconnect();
+        processorRef.current = null;
+    }
+    
     // Cleanup audio sources
     activeSourcesRef.current.forEach(source => {
       try { source.stop(); } catch (e) {}
@@ -44,10 +50,6 @@ export const useLiveSession = () => {
     }
     sessionPromiseRef.current = null;
 
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
-    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -65,8 +67,6 @@ export const useLiveSession = () => {
     setStatus(prev => prev === ConnectionStatus.ERROR ? prev : ConnectionStatus.DISCONNECTED);
     setVolume(0);
     nextStartTimeRef.current = 0;
-    // Optionally clear history on disconnect or keep it? 
-    // setChatHistory([]); // Let's keep it for now so user can see what was said
   }, []);
 
   const connect = useCallback(async (contextText: string) => {
@@ -143,6 +143,9 @@ export const useLiveSession = () => {
             processorRef.current = processor;
 
             processor.onaudioprocess = (e) => {
+              // Safety check: if processor is null or session is gone, stop
+              if (!processorRef.current || !sessionPromiseRef.current) return;
+
               const inputData = e.inputBuffer.getChannelData(0);
               
               // Simple volume calculation for visualizer
@@ -153,11 +156,16 @@ export const useLiveSession = () => {
 
               const pcmBlob = createPcmBlob(inputData);
               
-              if (sessionPromiseRef.current) {
-                sessionPromiseRef.current.then(session => {
-                  session.sendRealtimeInput({ media: pcmBlob });
-                }).catch(err => console.error("Send input error", err));
-              }
+              sessionPromiseRef.current.then(session => {
+                  // Double check session state logic if possible, or just catch errors silently
+                  try {
+                      session.sendRealtimeInput({ media: pcmBlob });
+                  } catch (err) {
+                      // Ignore send errors if closing
+                  }
+              }).catch(err => {
+                  // Ignore promise rejections during close
+              });
             };
 
             source.connect(processor);
