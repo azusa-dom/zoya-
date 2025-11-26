@@ -27,49 +27,53 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 
   return (
     <div
-      className="fixed z-50 flex items-center gap-2 bg-slate-900 text-white p-2 rounded-lg shadow-xl animate-in fade-in zoom-in duration-200"
+      className="fixed z-50 flex items-center gap-1 bg-white text-stone-800 p-1.5 rounded-lg shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-stone-200 animate-in fade-in zoom-in duration-200"
       style={{
         top: position.top,
         left: position.left,
-        transform: 'translate(-50%, -120%)' // Center horizontally, place above
+        transform: 'translate(-50%, -130%)' // Center horizontally, place slightly higher
       }}
     >
-      <div className="flex items-center gap-1 border-r border-slate-700 pr-2 mr-1">
-        <span className="text-xs font-medium text-slate-300 italic px-1 max-w-[150px] truncate">
-          "{displayLabel}"
+      <div className="flex items-center gap-2 border-r border-stone-200 pr-3 mr-1 pl-2">
+        <span className="text-xs font-bold text-stone-400 uppercase tracking-widest max-w-[120px] truncate">
+          {displayLabel}
         </span>
       </div>
 
       <button
         onClick={onTTS}
         disabled={isTTSLoading}
-        className="flex items-center gap-1 px-3 py-1.5 hover:bg-slate-700 rounded-md transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-100 rounded-md transition-colors text-xs font-bold uppercase tracking-wider text-stone-600 hover:text-stone-900"
       >
         {isTTSLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-stone-400" />
         ) : (
-          <Volume2 className={`w-4 h-4 ${isPlayingTTS ? 'text-blue-400 animate-pulse' : 'text-blue-400'}`} />
+          <Volume2 className={`w-3.5 h-3.5 ${isPlayingTTS ? 'text-blue-500 animate-pulse' : 'text-stone-400 group-hover:text-stone-600'}`} />
         )}
         <span>Listen</span>
       </button>
 
       <button
         onClick={onPractice}
-        className="flex items-center gap-1 px-3 py-1.5 hover:bg-slate-700 rounded-md transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-100 rounded-md transition-colors text-xs font-bold uppercase tracking-wider text-stone-600 hover:text-stone-900"
       >
-        <Mic className="w-4 h-4 text-green-400" />
+        <Mic className="w-3.5 h-3.5 text-stone-400 group-hover:text-stone-600" />
         <span>Practice</span>
       </button>
 
+      <div className="w-px h-4 bg-stone-200 mx-1"></div>
+
       <button
         onClick={onClose}
-        className="p-1 hover:bg-slate-700 rounded-full ml-1"
+        className="p-1.5 hover:bg-red-50 hover:text-red-500 rounded-md transition-colors text-stone-300"
       >
-        <X className="w-3 h-3 text-slate-400" />
+        <X className="w-3.5 h-3.5" />
       </button>
       
-      {/* Triangle pointer */}
-      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900"></div>
+      {/* Triangle pointer with border */}
+      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-3 h-3 overflow-hidden pointer-events-none">
+         <div className="w-2 h-2 bg-white border-r border-b border-stone-200 transform rotate-45 -translate-y-[5px] translate-x-[2px] shadow-sm"></div>
+      </div>
     </div>
   );
 };
