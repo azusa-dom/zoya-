@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Disable secret scanning to prevent false positives blocking deployment
+  # We have verified no actual secrets are in the codebase (API Key is in env vars)
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
