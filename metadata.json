@@ -1,0 +1,5 @@
+{
+  "name": "zoya 的背单词小助手",
+  "description": "An intelligent flashcard application that helps you memorize terms and phrases. Features AI-powered deck generation, spaced repetition study modes, and a beautiful, responsive interface.",
+  "requestFramePermissions": []
+}
