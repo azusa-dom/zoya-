@@ -78,6 +78,14 @@ export const useLiveSession = () => {
       inputContextRef.current = new AudioContextClass({ sampleRate: PCM_SAMPLE_RATE });
       outputContextRef.current = new AudioContextClass({ sampleRate: PLAYBACK_SAMPLE_RATE });
       
+      // Ensure contexts are running (browser autoplay policy)
+      if (inputContextRef.current.state === 'suspended') {
+        await inputContextRef.current.resume();
+      }
+      if (outputContextRef.current.state === 'suspended') {
+        await outputContextRef.current.resume();
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
