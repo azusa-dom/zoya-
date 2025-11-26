@@ -477,101 +477,6 @@ export default function App() {
     }
   }, [allCards]);
 
-  // ... (rest of useEffects) ...
-
-  const handleStartReview = () => {
-    const due = getDueCards(allCards);
-    if (due.length === 0) {
-      alert("No cards due for review! Great job!");
-      return;
-    }
-    setReviewQueue(due);
-    setIsReviewMode(true);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-  };
-
-  const handleExitReview = () => {
-    setIsReviewMode(false);
-    setReviewQueue([]);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-  };
-
-  const handleReviewGrade = (grade: number) => {
-    if (!isReviewMode || cards.length === 0) return;
-    
-    const currentCard = cards[currentIndex];
-    const updatedCard = calculateNextReview(currentCard, grade);
-    
-    // Update in main storage
-    setAllCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
-    
-    // Remove from review queue if not AGAIN, otherwise requeue
-    if (grade !== GRADE.AGAIN) {
-       const newQueue = reviewQueue.filter((_, i) => i !== currentIndex);
-       setReviewQueue(newQueue);
-       
-       // If queue empty, exit review
-       if (newQueue.length === 0) {
-         alert("Review session complete!");
-         setIsReviewMode(false);
-         setCurrentIndex(0);
-       } else {
-         // Move to next card (or stay at 0 if we removed current)
-         // If we are at the end, go to 0. If we removed current index 0, we are still at 0.
-         setCurrentIndex(prev => prev >= newQueue.length ? 0 : prev); 
-       }
-    } else {
-       // If AGAIN, keep in queue, maybe move to end? For simplicity, just keep it and move next
-       // Real Anki moves it to 'learning' queue. 
-       // Here we just keep it.
-       handleNext();
-    }
-    
-    setIsFlipped(false);
-  };
-
-  // ... (rest of handlers) ...
-
-  const handleAddCard = (newCard: ZoyaCard) => {
-    setAllCards(prev => [...prev, newCard]);
-  };
-
-  const handleImportCards = (importedCards: ZoyaCard[]) => {
-    setAllCards(prev => [...prev, ...importedCards]);
-    alert(`Successfully imported ${importedCards.length} card(s)!`);
-  };
-
-  const handleDeleteCurrentCard = () => {
-    if (cards.length <= 1 && !isReviewMode) {
-      alert("Cannot delete the last card.");
-      return;
-    }
-    if (confirm("Delete this card?")) {
-      const cardToDelete = cards[currentIndex];
-      const newAllCards = allCards.filter(c => c.id !== cardToDelete.id);
-      setAllCards(newAllCards);
-      
-      if (isReviewMode) {
-          const newQueue = reviewQueue.filter(c => c.id !== cardToDelete.id);
-          setReviewQueue(newQueue);
-          if (newQueue.length === 0) {
-              setIsReviewMode(false);
-              setCurrentIndex(0);
-          } else {
-              setCurrentIndex(prev => prev >= newQueue.length ? 0 : prev);
-          }
-      } else {
-          setCurrentIndex(prev => prev >= newAllCards.length ? 0 : prev);
-      }
-      setIsFlipped(false);
-    }
-  };
-  
-  // ...
-
-
   useEffect(() => {
     localStorage.setItem('zoya_highlights', JSON.stringify(savedHighlights));
   }, [savedHighlights]);
@@ -674,8 +579,59 @@ export default function App() {
       setIsFlipped(false);
     }
   };
-  
-  // ... (rest remains similar but using 'cards' variable)
+
+  const handleStartReview = () => {
+    const due = getDueCards(allCards);
+    if (due.length === 0) {
+      alert("No cards due for review! Great job!");
+      return;
+    }
+    setReviewQueue(due);
+    setIsReviewMode(true);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  };
+
+  const handleExitReview = () => {
+    setIsReviewMode(false);
+    setReviewQueue([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  };
+
+  const handleReviewGrade = (grade: number) => {
+    if (!isReviewMode || cards.length === 0) return;
+    
+    const currentCard = cards[currentIndex];
+    const updatedCard = calculateNextReview(currentCard, grade);
+    
+    // Update in main storage
+    setAllCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+    
+    // Remove from review queue if not AGAIN, otherwise requeue
+    if (grade !== GRADE.AGAIN) {
+       const newQueue = reviewQueue.filter((_, i) => i !== currentIndex);
+       setReviewQueue(newQueue);
+       
+       // If queue empty, exit review
+       if (newQueue.length === 0) {
+         alert("Review session complete!");
+         setIsReviewMode(false);
+         setCurrentIndex(0);
+       } else {
+         // Move to next card (or stay at 0 if we removed current)
+         // If we are at the end, go to 0. If we removed current index 0, we are still at 0.
+         setCurrentIndex(prev => prev >= newQueue.length ? 0 : prev); 
+       }
+    } else {
+       // If AGAIN, keep in queue, maybe move to end? For simplicity, just keep it and move next
+       // Real Anki moves it to 'learning' queue. 
+       // Here we just keep it.
+       handleNext();
+    }
+    
+    setIsFlipped(false);
+  };
 
   const handleTextMouseUp = () => {
     const selection = window.getSelection();
