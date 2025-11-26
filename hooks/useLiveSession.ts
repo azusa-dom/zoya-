@@ -125,16 +125,15 @@ export const useLiveSession = () => {
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.0-flash-exp',
         config: {
-          responseModalities: [Modality.AUDIO, Modality.TEXT], // Enable Text for transcript
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } },
-          },
+          responseModalities: [Modality.AUDIO], // Only Audio for stability
+          // Removed speechConfig to use defaults and avoid config errors
           systemInstruction: systemInstruction,
         },
         callbacks: {
           onopen: () => {
             console.log("Live session opened");
             setStatus(ConnectionStatus.CONNECTED);
+            isConnectedRef.current = true;
             
             // Start Audio Streaming
             if (!inputContextRef.current || !streamRef.current) return;
@@ -145,7 +144,7 @@ export const useLiveSession = () => {
 
             processor.onaudioprocess = (e) => {
               // Safety check: if processor is null or session is gone, stop
-              if (!processorRef.current || !sessionPromiseRef.current) return;
+              if (!processorRef.current || !sessionPromiseRef.current || !isConnectedRef.current) return;
 
               const inputData = e.inputBuffer.getChannelData(0);
               
@@ -232,6 +231,7 @@ export const useLiveSession = () => {
           },
           onclose: () => {
             console.log("Session closed from server");
+            isConnectedRef.current = false;
             // Do NOT call disconnect() here directly if it triggers state change that re-triggers connect
             // Just set status to disconnected or error
             setStatus(ConnectionStatus.DISCONNECTED);
