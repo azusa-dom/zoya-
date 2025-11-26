@@ -9,3 +9,10 @@ export interface ZoyaCard {
   sentences: string[];
   definition: string;
 }
+
+export enum ConnectionStatus {
+  DISCONNECTED = 'DISCONNECTED',
+  CONNECTING = 'CONNECTING',
+  CONNECTED = 'CONNECTED',
+  ERROR = 'ERROR',
+}

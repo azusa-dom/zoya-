@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Shuffle, Quote, Sparkles, BookOpen, 
   Sprout, Tags, MessageSquareQuote, Download, Highlighter, 
-  Trash2, Plus, X, Save, Loader2, Upload, FileText
+  Trash2, Plus, X, Save, Loader2, Upload, FileText, Volume2, Mic
 } from 'lucide-react';
 import { ZoyaCard } from './types';
 import { generateCardDetails } from './services/geminiService';
+import { useGeminiTTS } from './hooks/useGeminiTTS';
+import { FloatingToolbar } from './components/FloatingToolbar';
+import { LiveSessionOverlay } from './components/LiveSessionOverlay';
 
 // ----------------------------------------------------------------------
 // Initial Data
@@ -412,6 +415,12 @@ export default function App() {
   const cardContainerRef = useRef<HTMLDivElement>(null);
   const [cardHeight, setCardHeight] = useState(700);
   
+  // TTS and Voice Practice
+  const { speak, stopAudio, isPlaying: isPlayingTTS, isLoading: isTTSLoading } = useGeminiTTS();
+  const [selectedText, setSelectedText] = useState('');
+  const [toolbarPosition, setToolbarPosition] = useState<{ top: number; left: number } | null>(null);
+  const [showLiveSession, setShowLiveSession] = useState(false);
+  
   const [savedHighlights, setSavedHighlights] = useState<Record<string, string[]>>(() => {
     try {
       const saved = localStorage.getItem('zoya_highlights');
@@ -526,21 +535,55 @@ export default function App() {
   };
 
   const handleTextMouseUp = () => {
-    if (!highlightMode) return;
     const selection = window.getSelection();
-    // SAFE CHECK HERE
     const text = selection?.toString() || '';
+    
     if (text.trim().length > 0) {
-      setSavedHighlights(prev => {
-        const currentCardId = cards[currentIndex].id.toString();
-        const currentList = prev[currentCardId] || [];
-        if (!currentList.includes(text)) {
-           return { ...prev, [currentCardId]: [...currentList, text] };
-        }
-        return prev;
-      });
-      selection?.removeAllRanges();
+      // Show floating toolbar for text selection
+      const range = selection?.getRangeAt(0);
+      if (range) {
+        const rect = range.getBoundingClientRect();
+        setToolbarPosition({
+          top: rect.top + window.scrollY,
+          left: rect.left + rect.width / 2 + window.scrollX
+        });
+        setSelectedText(text);
+      }
+      
+      // Handle highlight mode
+      if (highlightMode) {
+        setSavedHighlights(prev => {
+          const currentCardId = cards[currentIndex].id.toString();
+          const currentList = prev[currentCardId] || [];
+          if (!currentList.includes(text)) {
+             return { ...prev, [currentCardId]: [...currentList, text] };
+          }
+          return prev;
+        });
+        selection?.removeAllRanges();
+      }
+    } else {
+      setToolbarPosition(null);
     }
+  };
+
+  const handleTTS = () => {
+    if (selectedText) {
+      speak(selectedText);
+    }
+    setToolbarPosition(null);
+  };
+
+  const handlePractice = () => {
+    if (selectedText) {
+      setShowLiveSession(true);
+      setToolbarPosition(null);
+    }
+  };
+
+  const handleCloseToolbar = () => {
+    setToolbarPosition(null);
+    window.getSelection()?.removeAllRanges();
   };
 
   const removeHighlight = (textToRemove: string) => {
@@ -683,7 +726,25 @@ export default function App() {
                         <span className="text-base text-stone-600 mt-1 block">{currentCard.chineseTranslation}</span>
                       )}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-center">
+                      <button 
+                        onClick={() => speak(currentCard.term)} 
+                        className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" 
+                        title="Listen to term"
+                        disabled={isTTSLoading}
+                      >
+                        {isTTSLoading ? <Loader2 size={16} className="animate-spin" /> : <Volume2 size={16} />}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedText(currentCard.term);
+                          setShowLiveSession(true);
+                        }} 
+                        className="p-2 text-stone-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                        title="Practice pronunciation"
+                      >
+                        <Mic size={16} />
+                      </button>
                       <button onClick={handleDeleteCurrentCard} className="text-stone-300 hover:text-red-500 transition-colors" title="Delete Card">
                         <Trash2 size={16} />
                       </button>
@@ -828,6 +889,28 @@ export default function App() {
       
       {showAddModal && <AddCardModal onClose={() => setShowAddModal(false)} onAdd={handleAddCard} />}
       {showImportModal && <ImportModal onClose={() => setShowImportModal(false)} onImport={handleImportCards} />}
+      
+      {/* Floating Toolbar for Text Selection */}
+      <FloatingToolbar
+        position={toolbarPosition}
+        onClose={handleCloseToolbar}
+        onTTS={handleTTS}
+        onPractice={handlePractice}
+        isTTSLoading={isTTSLoading}
+        isPlayingTTS={isPlayingTTS}
+        selectedText={selectedText}
+      />
+      
+      {/* Live Session Overlay */}
+      {showLiveSession && (
+        <LiveSessionOverlay
+          selectedText={selectedText || currentCard.term}
+          onClose={() => {
+            setShowLiveSession(false);
+            stopAudio();
+          }}
+        />
+      )}
 
       <style>{`.perspective-1000 { perspective: 1500px; } .preserve-3d { transform-style: preserve-3d; } .backface-hidden { backface-visibility: hidden; } .rotate-y-180 { transform: rotateY(180deg); } .custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 2px; }`}</style>
     </div>
