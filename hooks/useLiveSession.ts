@@ -25,9 +25,11 @@ export const useLiveSession = () => {
 
   // Keep track of connection attempts to prevent loops
   const connectionAttemptRef = useRef(0);
+  const isConnectedRef = useRef(false);
   
-    const disconnect = useCallback(async () => {
-    // Flag to stop processing
+  const disconnect = useCallback(async () => {
+    isConnectedRef.current = false;
+    // Cleanup audio sources
     if (processorRef.current) {
         processorRef.current.disconnect();
         processorRef.current = null;
