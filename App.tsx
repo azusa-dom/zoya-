@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Shuffle, Quote, Sparkles, BookOpen, 
   Sprout, Tags, MessageSquareQuote, Download, Highlighter, 
-  Trash2, Plus, X, Save, Loader2, Upload, FileText, Volume2, Mic
+  Trash2, Plus, X, Save, Loader2, Upload, FileText, Volume2, Mic,
+  Clock, CheckCircle2, AlertCircle, Book
 } from 'lucide-react';
 import { ZoyaCard } from './types';
 import { generateCardDetails } from './services/geminiService';
 import { useGeminiTTS } from './hooks/useGeminiTTS';
 import { FloatingToolbar } from './components/FloatingToolbar';
 import { LiveSessionOverlay } from './components/LiveSessionOverlay';
+import { getDueCards, calculateNextReview, GRADE } from './utils/srs';
 
 // ----------------------------------------------------------------------
 // Initial Data
@@ -26,7 +28,12 @@ const initialZoyaCards: ZoyaCard[] = [
       "Every financial decision involves an opportunity cost.",
       "The opportunity cost of going to college is the income you could have earned by working."
     ],
-    definition: "The potential benefits that an individual, investor, or business misses out on when choosing one alternative over another."
+    definition: "The potential benefits that an individual, investor, or business misses out on when choosing one alternative over another.",
+    nextReviewDate: 0, // Immediately due
+    interval: 0,
+    repetition: 0,
+    easeFactor: 2.5,
+    createdAt: Date.now()
   }
 ];
 
@@ -146,7 +153,12 @@ function AddCardModal({ onClose, onAdd }: AddCardModalProps) {
       layman: formData.layman || "No explanation provided.",
       example: formData.example || "No example provided.",
       sentences: formData.sentences.split('\n').map(s => s.trim()).filter(Boolean),
-      definition: formData.definition || "No definition provided."
+      definition: formData.definition || "No definition provided.",
+      nextReviewDate: 0,
+      interval: 0,
+      repetition: 0,
+      easeFactor: 2.5,
+      createdAt: Date.now()
     };
 
     onAdd(newCard);
@@ -298,7 +310,12 @@ function ImportModal({ onClose, onImport }: ImportModalProps) {
           layman: item.layman || '',
           example: item.example || '',
           sentences: Array.isArray(item.sentences) ? item.sentences : [],
-          definition: item.definition || ''
+          definition: item.definition || '',
+          nextReviewDate: item.nextReviewDate || 0,
+          interval: item.interval || 0,
+          repetition: item.repetition || 0,
+          easeFactor: item.easeFactor || 2.5,
+          createdAt: item.createdAt || Date.now()
         }));
       } else if (parsed.cards && Array.isArray(parsed.cards)) {
         // 如果是包含cards字段的对象
@@ -311,7 +328,12 @@ function ImportModal({ onClose, onImport }: ImportModalProps) {
           layman: item.layman || '',
           example: item.example || '',
           sentences: Array.isArray(item.sentences) ? item.sentences : [],
-          definition: item.definition || ''
+          definition: item.definition || '',
+          nextReviewDate: item.nextReviewDate || 0,
+          interval: item.interval || 0,
+          repetition: item.repetition || 0,
+          easeFactor: item.easeFactor || 2.5,
+          createdAt: item.createdAt || Date.now()
         }));
       } else {
         throw new Error('Invalid format');
@@ -405,7 +427,13 @@ function ImportModal({ onClose, onImport }: ImportModalProps) {
 // ----------------------------------------------------------------------
 
 export default function App() {
-  const [cards, setCards] = useState<ZoyaCard[]>([]);
+  const [allCards, setAllCards] = useState<ZoyaCard[]>([]); // Store all cards
+  const [reviewQueue, setReviewQueue] = useState<ZoyaCard[]>([]); // Cards to review
+  const [isReviewMode, setIsReviewMode] = useState(false);
+  
+  // Helper to get current active list
+  const cards = isReviewMode ? reviewQueue : allCards;
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [highlightMode, setHighlightMode] = useState(false);
@@ -434,20 +462,115 @@ export default function App() {
     const savedCards = localStorage.getItem('zoya_cards_v1');
     if (savedCards) {
       try {
-        setCards(JSON.parse(savedCards));
+        setAllCards(JSON.parse(savedCards));
       } catch (e) {
-        setCards(initialZoyaCards);
+        setAllCards(initialZoyaCards);
       }
     } else {
-      setCards(initialZoyaCards);
+      setAllCards(initialZoyaCards);
     }
   }, []);
 
   useEffect(() => {
-    if (cards.length > 0) {
-      localStorage.setItem('zoya_cards_v1', JSON.stringify(cards));
+    if (allCards.length > 0) {
+      localStorage.setItem('zoya_cards_v1', JSON.stringify(allCards));
     }
-  }, [cards]);
+  }, [allCards]);
+
+  // ... (rest of useEffects) ...
+
+  const handleStartReview = () => {
+    const due = getDueCards(allCards);
+    if (due.length === 0) {
+      alert("No cards due for review! Great job!");
+      return;
+    }
+    setReviewQueue(due);
+    setIsReviewMode(true);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  };
+
+  const handleExitReview = () => {
+    setIsReviewMode(false);
+    setReviewQueue([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  };
+
+  const handleReviewGrade = (grade: number) => {
+    if (!isReviewMode || cards.length === 0) return;
+    
+    const currentCard = cards[currentIndex];
+    const updatedCard = calculateNextReview(currentCard, grade);
+    
+    // Update in main storage
+    setAllCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+    
+    // Remove from review queue if not AGAIN, otherwise requeue
+    if (grade !== GRADE.AGAIN) {
+       const newQueue = reviewQueue.filter((_, i) => i !== currentIndex);
+       setReviewQueue(newQueue);
+       
+       // If queue empty, exit review
+       if (newQueue.length === 0) {
+         alert("Review session complete!");
+         setIsReviewMode(false);
+         setCurrentIndex(0);
+       } else {
+         // Move to next card (or stay at 0 if we removed current)
+         // If we are at the end, go to 0. If we removed current index 0, we are still at 0.
+         setCurrentIndex(prev => prev >= newQueue.length ? 0 : prev); 
+       }
+    } else {
+       // If AGAIN, keep in queue, maybe move to end? For simplicity, just keep it and move next
+       // Real Anki moves it to 'learning' queue. 
+       // Here we just keep it.
+       handleNext();
+    }
+    
+    setIsFlipped(false);
+  };
+
+  // ... (rest of handlers) ...
+
+  const handleAddCard = (newCard: ZoyaCard) => {
+    setAllCards(prev => [...prev, newCard]);
+  };
+
+  const handleImportCards = (importedCards: ZoyaCard[]) => {
+    setAllCards(prev => [...prev, ...importedCards]);
+    alert(`Successfully imported ${importedCards.length} card(s)!`);
+  };
+
+  const handleDeleteCurrentCard = () => {
+    if (cards.length <= 1 && !isReviewMode) {
+      alert("Cannot delete the last card.");
+      return;
+    }
+    if (confirm("Delete this card?")) {
+      const cardToDelete = cards[currentIndex];
+      const newAllCards = allCards.filter(c => c.id !== cardToDelete.id);
+      setAllCards(newAllCards);
+      
+      if (isReviewMode) {
+          const newQueue = reviewQueue.filter(c => c.id !== cardToDelete.id);
+          setReviewQueue(newQueue);
+          if (newQueue.length === 0) {
+              setIsReviewMode(false);
+              setCurrentIndex(0);
+          } else {
+              setCurrentIndex(prev => prev >= newQueue.length ? 0 : prev);
+          }
+      } else {
+          setCurrentIndex(prev => prev >= newAllCards.length ? 0 : prev);
+      }
+      setIsFlipped(false);
+    }
+  };
+  
+  // ...
+
 
   useEffect(() => {
     localStorage.setItem('zoya_highlights', JSON.stringify(savedHighlights));
@@ -507,32 +630,52 @@ export default function App() {
   
   const handleShuffle = () => {
     setIsFlipped(false);
-    const shuffled = [...cards].sort(() => Math.random() - 0.5);
-    setCards(shuffled);
+    if (isReviewMode) {
+        const shuffled = [...reviewQueue].sort(() => Math.random() - 0.5);
+        setReviewQueue(shuffled);
+    } else {
+        const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+        setAllCards(shuffled);
+    }
     setCurrentIndex(0);
   };
 
   const handleAddCard = (newCard: ZoyaCard) => {
-    setCards(prev => [...prev, newCard]);
+    setAllCards(prev => [...prev, newCard]);
   };
 
   const handleImportCards = (importedCards: ZoyaCard[]) => {
-    setCards(prev => [...prev, ...importedCards]);
+    setAllCards(prev => [...prev, ...importedCards]);
     alert(`Successfully imported ${importedCards.length} card(s)!`);
   };
 
   const handleDeleteCurrentCard = () => {
-    if (cards.length <= 1) {
+    if (allCards.length <= 1 && !isReviewMode) {
       alert("Cannot delete the last card.");
       return;
     }
     if (confirm("Delete this card?")) {
-      const newCards = cards.filter((_, i) => i !== currentIndex);
-      setCards(newCards);
-      setCurrentIndex(prev => prev >= newCards.length ? 0 : prev);
+      const cardToDelete = cards[currentIndex];
+      const newAllCards = allCards.filter(c => c.id !== cardToDelete.id);
+      setAllCards(newAllCards);
+      
+      if (isReviewMode) {
+          const newQueue = reviewQueue.filter(c => c.id !== cardToDelete.id);
+          setReviewQueue(newQueue);
+          if (newQueue.length === 0) {
+              setIsReviewMode(false);
+              setCurrentIndex(0);
+          } else {
+              setCurrentIndex(prev => prev >= newQueue.length ? 0 : prev);
+          }
+      } else {
+          setCurrentIndex(prev => prev >= newAllCards.length ? 0 : prev);
+      }
       setIsFlipped(false);
     }
   };
+  
+  // ... (rest remains similar but using 'cards' variable)
 
   const handleTextMouseUp = () => {
     const selection = window.getSelection();
@@ -607,7 +750,7 @@ export default function App() {
     const exportData = {
       version: '1.0',
       exportedAt: new Date().toISOString(),
-      cards: cards.map(card => ({
+      cards: allCards.map(card => ({
         id: card.id,
         term: card.term,
         chineseTranslation: card.chineseTranslation,
@@ -616,7 +759,11 @@ export default function App() {
         layman: card.layman,
         example: card.example,
         sentences: card.sentences,
-        definition: card.definition
+        definition: card.definition,
+        nextReviewDate: card.nextReviewDate,
+        interval: card.interval,
+        repetition: card.repetition,
+        easeFactor: card.easeFactor
       }))
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -632,7 +779,7 @@ export default function App() {
 
   const handleExportAICards = () => {
     // 导出为AI训练数据集格式
-    const exportData = cards.map(card => ({
+    const exportData = allCards.map(card => ({
       input_text: `Explain the term "${card.term}"${card.chineseTranslation ? ` (${card.chineseTranslation})` : ''}`,
       output_text: `Term: ${card.term}${card.chineseTranslation ? ` (${card.chineseTranslation})` : ''}\nRoots: ${card.roots}\nLayman Explanation: ${card.layman}\nExample: ${card.example}\nDefinition: ${card.definition}`
     }));
@@ -658,10 +805,18 @@ export default function App() {
       {/* Header */}
       <div className="mb-6 text-center tracking-wide mt-12 md:mt-0 relative z-10">
         <div className="inline-block border-b-2 border-stone-800 pb-1 mb-2">
-            <h1 className="text-3xl font-bold uppercase tracking-widest text-stone-900">Zoya 快去背单词</h1>
+            <h1 className="text-3xl font-bold uppercase tracking-widest text-stone-900">
+                {isReviewMode ? "Review Session" : "Zoya 快去背单词"}
+            </h1>
         </div>
         <div className="flex items-center justify-center gap-4 text-stone-500 text-xs font-medium uppercase tracking-widest">
-            <span>Master Terminology & Context</span>
+            {isReviewMode ? (
+                <span className="text-purple-600 font-bold flex items-center gap-1">
+                    <Clock size={14} /> Due Today: {reviewQueue.length}
+                </span>
+            ) : (
+                <span>Master Terminology & Context</span>
+            )}
         </div>
       </div>
 
@@ -791,6 +946,24 @@ export default function App() {
                         </div>
                     </div>
                 </div>
+
+                {/* Review Buttons */}
+                {isReviewMode && (
+                    <div className="mt-8 pt-6 border-t border-stone-200 flex justify-between gap-2">
+                        <button onClick={() => handleReviewGrade(GRADE.AGAIN)} className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs font-bold uppercase tracking-widest border border-red-200 transition-colors">
+                            Again <span className="block text-[9px] font-normal opacity-70">1 min</span>
+                        </button>
+                        <button onClick={() => handleReviewGrade(GRADE.HARD)} className="flex-1 py-3 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded text-xs font-bold uppercase tracking-widest border border-orange-200 transition-colors">
+                            Hard <span className="block text-[9px] font-normal opacity-70">2 days</span>
+                        </button>
+                        <button onClick={() => handleReviewGrade(GRADE.GOOD)} className="flex-1 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-xs font-bold uppercase tracking-widest border border-blue-200 transition-colors">
+                            Good <span className="block text-[9px] font-normal opacity-70">4 days</span>
+                        </button>
+                        <button onClick={() => handleReviewGrade(GRADE.EASY)} className="flex-1 py-3 bg-green-50 hover:bg-green-100 text-green-600 rounded text-xs font-bold uppercase tracking-widest border border-green-200 transition-colors">
+                            Easy <span className="block text-[9px] font-normal opacity-70">7 days</span>
+                        </button>
+                    </div>
+                )}
             </div>
           </div>
         </div>
@@ -800,27 +973,53 @@ export default function App() {
       <div className="mt-8 w-full max-w-2xl z-10">
         {/* Navigation Section */}
         <div className="flex items-center justify-center gap-6 mb-6">
-          <button onClick={handlePrev} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm" title="Previous Card">
-            <ArrowLeft size={20} />
-          </button>
-          <span className="font-serif text-xl font-bold text-stone-800 min-w-[60px] text-center">
-            {currentIndex + 1} <span className="text-stone-400 font-light">/</span> {cards.length}
-          </span>
-          <button onClick={handleNext} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm" title="Next Card">
-            <ArrowRight size={20} />
-          </button>
+          {!isReviewMode && (
+             <>
+              <button onClick={handlePrev} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm" title="Previous Card">
+                <ArrowLeft size={20} />
+              </button>
+              <span className="font-serif text-xl font-bold text-stone-800 min-w-[60px] text-center">
+                {currentIndex + 1} <span className="text-stone-400 font-light">/</span> {cards.length}
+              </span>
+              <button onClick={handleNext} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm" title="Next Card">
+                <ArrowRight size={20} />
+              </button>
+             </>
+          )}
+          {isReviewMode && (
+              <span className="font-serif text-xl font-bold text-stone-800 min-w-[60px] text-center">
+                Reviewing: {currentIndex + 1} / {reviewQueue.length}
+              </span>
+          )}
         </div>
 
         {/* Action Buttons Section */}
         <div className="flex flex-col gap-3">
           {/* Primary Actions */}
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <button 
-              onClick={() => setShowAddModal(true)} 
-              className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white rounded-lg border border-stone-900 hover:bg-stone-700 text-xs font-bold uppercase tracking-widest shadow-md transition-all"
-            >
-              <Plus size={18} /> Add Card
-            </button>
+            {!isReviewMode ? (
+                <>
+                    <button 
+                      onClick={handleStartReview}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white rounded-lg border border-purple-600 hover:bg-purple-700 text-xs font-bold uppercase tracking-widest shadow-md transition-all"
+                    >
+                      <Clock size={18} /> Review ({getDueCards(allCards).length})
+                    </button>
+                    <button 
+                      onClick={() => setShowAddModal(true)} 
+                      className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white rounded-lg border border-stone-900 hover:bg-stone-700 text-xs font-bold uppercase tracking-widest shadow-md transition-all"
+                    >
+                      <Plus size={18} /> Add
+                    </button>
+                </>
+            ) : (
+                <button 
+                  onClick={handleExitReview}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-stone-200 text-stone-700 rounded-lg border border-stone-300 hover:bg-stone-300 text-xs font-bold uppercase tracking-widest shadow-md transition-all"
+                >
+                  <X size={18} /> Exit Review
+                </button>
+            )}
 
             <button 
               onClick={() => setShowImportModal(true)} 
