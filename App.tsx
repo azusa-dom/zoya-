@@ -690,35 +690,93 @@ export default function App() {
       </div>
 
       {/* Controls */}
-      <div className="mt-10 flex flex-col md:flex-row items-center gap-8 w-full max-w-2xl justify-between z-10">
-        <div className="flex items-center gap-6 order-2 md:order-1">
-            <button onClick={handlePrev} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm"><ArrowLeft size={20} /></button>
-            <span className="font-serif text-xl font-bold text-stone-800 w-16 text-center">{currentIndex + 1} <span className="text-stone-400 font-light">/</span> {cards.length}</span>
-            <button onClick={handleNext} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm"><ArrowRight size={20} /></button>
+      <div className="mt-8 w-full max-w-2xl z-10">
+        {/* Navigation Section */}
+        <div className="flex items-center justify-center gap-6 mb-6">
+          <button onClick={handlePrev} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm" title="Previous Card">
+            <ArrowLeft size={20} />
+          </button>
+          <span className="font-serif text-xl font-bold text-stone-800 min-w-[60px] text-center">
+            {currentIndex + 1} <span className="text-stone-400 font-light">/</span> {cards.length}
+          </span>
+          <button onClick={handleNext} className="w-12 h-12 rounded-full border border-stone-300 hover:bg-stone-800 hover:text-white transition-all flex items-center justify-center bg-white shadow-sm" title="Next Card">
+            <ArrowRight size={20} />
+          </button>
         </div>
-        
-        <div className="flex items-center gap-3 order-1 md:order-2 flex-wrap justify-center">
-            <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded border border-stone-900 hover:bg-stone-700 text-xs font-bold uppercase tracking-widest shadow-md transition-all">
-              <Plus size={16} /> Add Card
+
+        {/* Action Buttons Section */}
+        <div className="flex flex-col gap-3">
+          {/* Primary Actions */}
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <button 
+              onClick={() => setShowAddModal(true)} 
+              className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-white rounded-lg border border-stone-900 hover:bg-stone-700 text-xs font-bold uppercase tracking-widest shadow-md transition-all"
+            >
+              <Plus size={18} /> Add Card
             </button>
 
-            <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white text-stone-700 rounded border border-stone-300 hover:bg-stone-100 text-xs font-bold uppercase tracking-widest shadow-sm transition-all" title="Import Cards">
-              <Upload size={16} /> Import
+            <button 
+              onClick={() => setShowImportModal(true)} 
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-stone-700 rounded-lg border border-stone-300 hover:bg-stone-50 text-xs font-bold uppercase tracking-widest shadow-sm transition-all" 
+              title="Import Cards"
+            >
+              <Upload size={18} /> Import
             </button>
 
-            <button onClick={handleShuffle} className="p-2 text-stone-500 hover:bg-stone-200 rounded transition-colors" title="Shuffle"><Shuffle size={16} /></button>
-            
-            <button onClick={() => setHighlightMode(!highlightMode)} className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest rounded border transition-all ${highlightMode ? 'bg-[#ccff00] text-black border-[#ccff00] shadow-md ring-2 ring-stone-200' : 'bg-white text-stone-500 border-stone-300 hover:border-stone-500'}`} title={highlightMode ? "Highlighter ON" : "Turn on Highlighter"}>
-                <Highlighter size={16} className={highlightMode ? "fill-black" : ""} /> {highlightMode ? 'ON' : 'Highlight'}
+            <button 
+              onClick={handleShuffle} 
+              className="flex items-center gap-2 px-4 py-2.5 text-stone-600 hover:bg-stone-100 rounded-lg border border-stone-300 transition-all" 
+              title="Shuffle Cards"
+            >
+              <Shuffle size={18} />
+            </button>
+          </div>
+
+          {/* Secondary Actions */}
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <button 
+              onClick={() => setHighlightMode(!highlightMode)} 
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg border transition-all ${
+                highlightMode 
+                  ? 'bg-[#ccff00] text-black border-[#ccff00] shadow-md' 
+                  : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-50'
+              }`} 
+              title={highlightMode ? "Highlighter ON" : "Turn on Highlighter"}
+            >
+              <Highlighter size={16} className={highlightMode ? "fill-black" : ""} /> 
+              {highlightMode ? 'ON' : 'Highlight'}
             </button>
             
-             {cardHighlights.length > 0 && (
-                <button onClick={clearAllHighlights} className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Clear all highlights"><Trash2 size={16} /></button>
+            {cardHighlights.length > 0 && (
+              <button 
+                onClick={clearAllHighlights} 
+                className="flex items-center gap-2 px-4 py-2.5 text-stone-500 hover:text-red-600 hover:bg-red-50 rounded-lg border border-stone-300 transition-all" 
+                title="Clear all highlights"
+              >
+                <Trash2 size={16} />
+              </button>
             )}
             
-            <button onClick={handleExport} className="p-2 text-stone-400 hover:text-stone-800 hover:bg-stone-200 rounded transition-colors" title="Export Cards"><Download size={16} /></button>
-            
-            <button onClick={handleExportAICards} className="p-2 text-stone-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors" title="Export AI Dataset"><FileText size={16} /></button>
+            <div className="flex items-center gap-2 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200">
+              <button 
+                onClick={handleExport} 
+                className="p-2 text-stone-500 hover:text-stone-800 hover:bg-white rounded transition-colors" 
+                title="Export Cards"
+              >
+                <Download size={18} />
+              </button>
+              
+              <div className="w-px h-6 bg-stone-300"></div>
+              
+              <button 
+                onClick={handleExportAICards} 
+                className="p-2 text-stone-500 hover:text-purple-600 hover:bg-white rounded transition-colors" 
+                title="Export AI Dataset"
+              >
+                <FileText size={18} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
